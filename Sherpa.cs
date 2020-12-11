@@ -104,13 +104,20 @@ namespace Sherpa
 			// Retrieve the content type from the registry -- they're under CLASSES_ROOT/<ext>/Content Type
 			// If the extension doesn't have one, then we use application/octet-stream for binary
 			string ext = Path.GetExtension(filename);
-			resp.ContentType = "application/octet-stream";
-			RegistryKey rk = Registry.ClassesRoot.OpenSubKey(ext);
-			if (rk != null)
+			if (ext.ToLower() != ".js")
 			{
-				object tmp_type = rk.GetValue("Content Type", "application/octet-stream");
-				if (tmp_type != null)
-					resp.ContentType = tmp_type.ToString();
+				resp.ContentType = "application/octet-stream";
+				RegistryKey rk = Registry.ClassesRoot.OpenSubKey(ext);
+				if (rk != null)
+				{
+					object tmp_type = rk.GetValue("Content Type", "application/octet-stream");
+					if (tmp_type != null)
+						resp.ContentType = tmp_type.ToString();
+				}
+			}
+			else
+			{
+				resp.ContentType = "text/javascript";
 			}
 
 			// Write the response info
