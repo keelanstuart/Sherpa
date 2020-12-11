@@ -32,21 +32,6 @@ namespace Sherpa
 			base.Dispose(disposing);
 		}
 
-		public void Log(string s)
-		{
-			if (logTextBox == null)
-				return;
-
-			if (InvokeRequired)
-			{
-				this.Invoke(new Action<string>(Log), new object[] { s });
-				return;
-			}
-
-			logTextBox.AppendText(s);
-			logTextBox.ScrollToCaret();
-		}
-
 		#region Windows Form Designer generated code
 
 		/// <summary>
@@ -55,6 +40,8 @@ namespace Sherpa
 		/// </summary>
 		private void InitializeComponent()
 		{
+			this.components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ServerOptionsForm));
 			this.logTextBox = new System.Windows.Forms.RichTextBox();
 			this.editPort = new System.Windows.Forms.NumericUpDown();
 			this.labelPort = new System.Windows.Forms.Label();
@@ -63,7 +50,14 @@ namespace Sherpa
 			this.buttonBrowseRoot = new System.Windows.Forms.Button();
 			this.rootBrowserDialog = new System.Windows.Forms.FolderBrowserDialog();
 			this.buttonActive = new System.Windows.Forms.Button();
+			this.notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
+			this.notifyIconContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+			this.menuItemOpen = new System.Windows.Forms.ToolStripMenuItem();
+			this.menuItemToggleActivate = new System.Windows.Forms.ToolStripMenuItem();
+			this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+			this.menuItemRootDirQuickChange = new System.Windows.Forms.ToolStripMenuItem();
 			((System.ComponentModel.ISupportInitialize)(this.editPort)).BeginInit();
+			this.notifyIconContextMenu.SuspendLayout();
 			this.SuspendLayout();
 			// 
 			// logTextBox
@@ -166,7 +160,48 @@ namespace Sherpa
 			this.buttonActive.TabIndex = 7;
 			this.buttonActive.Text = "...";
 			this.buttonActive.UseVisualStyleBackColor = false;
-			this.buttonActive.Click += new System.EventHandler(this.button1_Click);
+			// 
+			// notifyIcon
+			// 
+			this.notifyIcon.BalloonTipTitle = "Sherpa";
+			this.notifyIcon.ContextMenuStrip = this.notifyIconContextMenu;
+			this.notifyIcon.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon.Icon")));
+			this.notifyIcon.Visible = true;
+			this.notifyIcon.DoubleClick += new System.EventHandler(this.notifyIcon_DoubleClick);
+			// 
+			// notifyIconContextMenu
+			// 
+			this.notifyIconContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuItemOpen,
+            this.menuItemToggleActivate,
+            this.toolStripSeparator1,
+            this.menuItemRootDirQuickChange});
+			this.notifyIconContextMenu.Name = "notifyIconContextMenu";
+			this.notifyIconContextMenu.Size = new System.Drawing.Size(200, 76);
+			// 
+			// menuItemOpen
+			// 
+			this.menuItemOpen.Name = "menuItemOpen";
+			this.menuItemOpen.Size = new System.Drawing.Size(199, 22);
+			this.menuItemOpen.Text = "Open Options Dialog...";
+			// 
+			// menuItemToggleActivate
+			// 
+			this.menuItemToggleActivate.Name = "menuItemToggleActivate";
+			this.menuItemToggleActivate.Size = new System.Drawing.Size(199, 22);
+			this.menuItemToggleActivate.Text = "Disable";
+			// 
+			// toolStripSeparator1
+			// 
+			this.toolStripSeparator1.Name = "toolStripSeparator1";
+			this.toolStripSeparator1.Size = new System.Drawing.Size(196, 6);
+			// 
+			// menuItemRootDirQuickChange
+			// 
+			this.menuItemRootDirQuickChange.Enabled = false;
+			this.menuItemRootDirQuickChange.Name = "menuItemRootDirQuickChange";
+			this.menuItemRootDirQuickChange.Size = new System.Drawing.Size(199, 22);
+			this.menuItemRootDirQuickChange.Text = "Quickset Root Directory";
 			// 
 			// ServerOptionsForm
 			// 
@@ -180,11 +215,13 @@ namespace Sherpa
 			this.Controls.Add(this.labelPort);
 			this.Controls.Add(this.editPort);
 			this.Controls.Add(this.logTextBox);
+			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.Name = "ServerOptionsForm";
-			this.Text = "Sherpa (lightweight http server)";
+			this.Text = "Sherpa HTTP Server";
 			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.ServerOptionsForm_FormClosed);
 			this.Load += new System.EventHandler(this.ServerOptionsForm_Load);
 			((System.ComponentModel.ISupportInitialize)(this.editPort)).EndInit();
+			this.notifyIconContextMenu.ResumeLayout(false);
 			this.ResumeLayout(false);
 			this.PerformLayout();
 
@@ -199,7 +236,13 @@ namespace Sherpa
 		private System.Windows.Forms.Label labelRoot;
 		private System.Windows.Forms.Button buttonBrowseRoot;
 		private FolderBrowserDialog rootBrowserDialog;
-		public Button buttonActive;
+		public System.Windows.Forms.Button buttonActive;
+		private NotifyIcon notifyIcon;
+		private ContextMenuStrip notifyIconContextMenu;
+		private ToolStripMenuItem menuItemOpen;
+		private ToolStripMenuItem menuItemToggleActivate;
+		private ToolStripSeparator toolStripSeparator1;
+		private ToolStripMenuItem menuItemRootDirQuickChange;
 	}
 }
 

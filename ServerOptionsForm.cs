@@ -24,14 +24,9 @@ namespace Sherpa
 			comboRoot.Text = Properties.Settings.Default.rootDir;
 			editPort.Value = Properties.Settings.Default.port;
 
-			Properties.Settings.Default.previousRootDirs = new System.Collections.Specialized.StringCollection();
-			if (Properties.Settings.Default.previousRootDirs != null)
+			for (int i = 0; i < Properties.Settings.Default.previousRootDirs.Count; i++)
 			{
-				var it = Properties.Settings.Default.previousRootDirs.GetEnumerator();
-				while (it.MoveNext())
-				{
-					comboRoot.Items.Add(it.ToString());
-				}
+				comboRoot.Items.Add(Properties.Settings.Default.previousRootDirs[i].ToString());
 			}
 
 			Sherpa.StartServer();
@@ -41,11 +36,11 @@ namespace Sherpa
 		{
 			Sherpa.StopServer();
 
-			Properties.Settings.Default.previousRootDirs.Clear();
 			var it = comboRoot.Items.GetEnumerator();
 			while (it.MoveNext())
 			{
-				Properties.Settings.Default.previousRootDirs.Add(it.Current.ToString());
+				if (!Properties.Settings.Default.previousRootDirs.Contains(it.Current.ToString()))
+					Properties.Settings.Default.previousRootDirs.Add(it.Current.ToString());
 			}
 
 			Properties.Settings.Default.Save();
@@ -56,35 +51,39 @@ namespace Sherpa
 			Sherpa.UpdatePort((int)editPort.Value);
 		}
 
+		private void MaybeAddPathToDropDown(string path)
+		{
+			// Search for the path in the combobox items...
+			bool itemfound = false;
+
+			// use the lower case version of comboRoot.Text
+			string temp = comboRoot.Text;
+			while (path.EndsWith('\\') || path.EndsWith('/'))
+				path = path.Remove(path.Length - 1);
+			string pathlc = path.ToLower();
+
+			var it = comboRoot.Items.GetEnumerator();
+			while (it.MoveNext())
+			{
+				// only compare like cases
+				if (pathlc == it.Current.ToString().ToLower())
+				{
+					itemfound = true;
+					break;
+				}
+			}
+
+			// if it hasn't been entered before, then add it to the combobox's drop down list...
+			// this will be used later to populate a sub-menu on the tray icon for fast switching
+			if (!itemfound)
+				comboRoot.Items.Add(path);
+		}
+
 		private void comboRoot_TextUpdate(object sender, EventArgs e)
 		{
 			if (Directory.Exists(comboRoot.Text))
 			{
-				// Search for the path in the combobox items...
-				bool itemfound = false;
-
-				// use the lower case version of comboRoot.Text
-				string temp = comboRoot.Text;
-				while (temp.EndsWith('\\') || temp.EndsWith('/'))
-					temp = temp.Remove(temp.Length - 1);
-				string templc = temp.ToLower();
-
-				var it = comboRoot.Items.GetEnumerator();
-				while (it.MoveNext())
-				{
-					// only compare like cases
-					if (templc == it.Current.ToString().ToLower())
-					{	
-						itemfound = true;
-						break;
-					}
-				}
-
-				// if it hasn't been entered before, then add it to the combobox's drop down list...
-				// this will be used later to populate a sub-menu on the tray icon for fast switching
-				if (!itemfound)
-					comboRoot.Items.Add(temp);
-
+				MaybeAddPathToDropDown(comboRoot.Text);
 				Sherpa.UpdateRootDir(comboRoot.Text);
 			}
 		}
@@ -97,24 +96,102 @@ namespace Sherpa
 			if (fbd.ShowDialog() == DialogResult.OK)
 			{
 				comboRoot.Text = fbd.SelectedPath;
-			}
-		}
-
-		private void button1_Click(object sender, EventArgs e)
-		{
-			if (Sherpa.ServerActive())
-			{
-				Sherpa.StopServer();
-			}
-			else
-			{
-				Sherpa.StartServer();
+				MaybeAddPathToDropDown(comboRoot.Text);
+				Sherpa.UpdateRootDir(fbd.SelectedPath);
 			}
 		}
 
 		private void comboRoot_SelectionChangeCommitted(object sender, EventArgs e)
 		{
 			Sherpa.UpdateRootDir(comboRoot.SelectedItem.ToString());
+		}
+
+		private void notifyIcon_DoubleClick(object sender, EventArgs e)
+		{
+			Visible = true;
+			Show();
+		}
+
+		public void Log(string s)
+		{
+			if (logTextBox == null)
+				return;
+
+			if (InvokeRequired)
+			{
+				try
+				{
+					this.Invoke(new Action<string>(Log), new object[] { s });
+				}
+				catch (Exception)
+				{
+				}
+
+				return;
+			}
+
+			logTextBox.AppendText(s);
+			logTextBox.ScrollToCaret();
+		}
+
+		public enum ServerState { Active, Paused, Waiting };
+
+		public void SetServerState(ServerState s)
+		{
+			if (buttonActive == null)
+				return;
+
+			if (InvokeRequired)
+			{
+				try
+				{
+					this.Invoke(new Action<ServerState>(SetServerState), new object[] { s });
+				}
+				catch(Exception)
+				{
+				}
+
+				return;
+			}
+
+			switch (s)
+			{
+				case ServerState.Active:
+					buttonActive.Text = "Active";
+					buttonActive.BackColor = Color.PaleGreen;
+					buttonActive.ForeColor = Color.Black;
+					buttonActive.Click -= buttonPaused_Click;
+					buttonActive.Click += buttonActive_Click;
+					buttonActive.Enabled = true;
+					break;
+
+				case ServerState.Paused:
+					buttonActive.Text = "Paused";
+					buttonActive.BackColor = Color.LightCoral;
+					buttonActive.ForeColor = Color.White;
+					buttonActive.Click -= buttonActive_Click;
+					buttonActive.Click += buttonPaused_Click;
+					buttonActive.Enabled = true;
+					break;
+
+				case ServerState.Waiting:
+					buttonActive.Text = "...";
+					buttonActive.BackColor = Color.Moccasin;
+					buttonActive.ForeColor = Color.White;
+					break;
+			}
+		}
+
+		private void buttonActive_Click(object sender, EventArgs e)
+		{
+			buttonActive.Enabled = false;
+			Sherpa.StopServer();
+		}
+
+		private void buttonPaused_Click(object sender, EventArgs e)
+		{
+			buttonActive.Enabled = false;
+			Sherpa.StartServer();
 		}
 	}
 }

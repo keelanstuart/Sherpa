@@ -15,30 +15,19 @@ namespace Sherpa
 {
 	static class Sherpa
 	{
-		static string instanceMutexName = "SherpaInstance";
+		// used as a key to a global mutex that keeps us from starting multiple instances
+		private static string instanceMutexName = "SherpaInstance";
 
-		static ServerOptionsForm optionsForm = null;
+		public static ServerOptionsForm optionsForm = null;
 
-		public static HttpListener listener = null;
-		public static AutoResetEvent stopEvent = null;
-		public static AutoResetEvent servedEvent = null;
-		public static Thread serverThread = null;
+		private static AutoResetEvent shutdownEvent = new AutoResetEvent(false);     // signaled when it's time to shut down
+		private static AutoResetEvent settingsEvent = new AutoResetEvent(true);		 // signaled to update the listener settings
+		private static AutoResetEvent startEvent = new AutoResetEvent(false);		 // signaled to start the listener
+		private static AutoResetEvent stopEvent = new AutoResetEvent(false);		 // signaled to stop the listener
+		private static AutoResetEvent servedEvent = new AutoResetEvent(false);		 // signaled after each request has been served, reset when a request is received
+		private static Mutex rootDirMutex = new Mutex(false);
 
-		public static string rootDir = "D:/proj/three.js/examples";
-		public static int pageViews = 0;
-		public static int requestCount = 0;
-
-		// The 404 message
-		public static string fourOhFour =
-			"<!DOCTYPE>" +
-			"<html>" +
-			"  <head>" +
-			"    <title>Requested File Unavailable</title>" +
-			"  </head>" +
-			"  <body>" +
-			"    <b>404: {0} not found!</b>" +
-			"  </body>" +
-			"</html>";
+		private static int requestCount = 0;
 
 		public static void ListenerRequestCallback(IAsyncResult result)
 		{
@@ -52,7 +41,6 @@ namespace Sherpa
 			}
 			catch (Exception)               // it's possible that we closed the program...
 			{
-				servedEvent.Set();
 				return;
 			}
 
@@ -60,38 +48,57 @@ namespace Sherpa
 			HttpListenerRequest req = ctx.Request;
 			HttpListenerResponse resp = ctx.Response;
 
-			// Print out some info about the request
-			optionsForm.Log(string.Format("Request({0}): \"{1}\" <<== {2}\n", ++requestCount, req.Url.ToString(), req.UserHostName));
-
 			// if the rootDir is blank, then we'll use the user's MyDocuments folder...
-			string filename;
-			if (rootDir.Length == 0)
+			rootDirMutex.WaitOne(-1);
+			string filename = Properties.Settings.Default.rootDir;
+			rootDirMutex.ReleaseMutex();
+
+			if (filename.Length == 0)
 			{
 				filename = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-			}
-			else
-			{
-				filename = rootDir;
 			}
 
 			//string reqUrl = req.Url.
 			// Append the requested file to the rootDir to get the actual local filename
 			filename += req.Url.AbsolutePath;
 
-			byte[] data = null;
+			// if the filename is actually a bare directory and an index.html file
+			// exists inside it, then that's our file
+			if (Directory.Exists(filename))
+			{
+				if (File.Exists(filename + "/index.html"))
+				{
+					filename += "/index.html";
+				}
+			}
+
+			// Print out some info about the request
+			optionsForm.Log(string.Format("Request({0}): {2} << \"{1}\" ({3})\n", ++requestCount, req.Url.ToString(), req.UserHostName, filename));
+
+			byte[] databuf = null;
 
 			// if the file requested doesn't exist...
 			if (!File.Exists(filename))
 			{
+				// The 404 message
+				string fourOhFour =	"<html>" +
+					"\t<head>" +
+					"\t\t<title>Requested File Unavailable</title>" +
+					"\t</head>" +
+					"\t<body>" +
+					"\t\t<b>404: {0} not found!</b>" +
+					"\t</body>" +
+					"</html>";
+
 				// report 404
 				resp.StatusCode = 404;
-				data = Encoding.UTF8.GetBytes(String.Format(fourOhFour, filename));
+				databuf = Encoding.UTF8.GetBytes(String.Format(fourOhFour, filename));
 			}
 			else
 			{
 				// otherwise, load it's contents into data and report "OK"
 				resp.StatusCode = 200;
-				data = File.ReadAllBytes(filename);
+				databuf = File.ReadAllBytes(filename);
 			}
 
 			// Retrieve the content type from the registry -- they're under CLASSES_ROOT/<ext>/Content Type
@@ -111,42 +118,97 @@ namespace Sherpa
 
 			// Send chunked if the data isn't "text" or it's larger than 256KB
 			resp.SendChunked = true;// false;// (data.LongLength >= (1 << 18)) || !resp.ContentType.Contains("text", StringComparison.CurrentCultureIgnoreCase);
-			resp.ContentLength64 = data.LongLength;
+			resp.ContentLength64 = databuf.Length;
 
 			// Write out to the response stream (asynchronously), then close it
-			resp.OutputStream.WriteAsync(data, 0, data.Length);
+			resp.OutputStream.WriteAsync(databuf, 0, databuf.Length);
 			resp.Close();
 
+			// Once the request has been served, we can quit if we need to
 			servedEvent.Set();
 		}
 
 		public static void ServerThreadProc()
 		{
+			WaitHandle[] waitEvents = new WaitHandle[5] { shutdownEvent, settingsEvent, startEvent, stopEvent, servedEvent  };
+
 			// Create a Http server and start listening for incoming connections
-			listener = new HttpListener();
+			HttpListener listener = new HttpListener();
 
-			// build the listener url string using the designated port.
-			string url = "http://localhost:";
-			url += Properties.Settings.Default.port.ToString();
-			url += "/";
+			IAsyncResult ctx = null;
+			string url = "";
 
-			listener.Prefixes.Add(url);
-			listener.Start();
-			optionsForm.Log(string.Format("Listening for connections as {0}\n\n", url));
-
-			// Handle requests
-			// while the stop event hasn't been signaled
-			while (!stopEvent.WaitOne(0))
+			// Handle requests while the shutdown event hasn't been signaled
+			int waitret = WaitHandle.WaitTimeout;
+			while ((waitret = WaitHandle.WaitAny(waitEvents, -1)) != 0)
 			{
-				servedEvent.Reset();
-
-				// Start a timed, asynchronous wait to get the context
-				var ctx = listener.BeginGetContext(new AsyncCallback(ListenerRequestCallback), listener);
-
-				// if we actually received a request, then wait until it's been served, otherwise time out and see if we've been shut down...
-				if (ctx.AsyncWaitHandle.WaitOne(100, true))
+				switch (waitret)
 				{
-					servedEvent.WaitOne();
+					case 1:
+					{
+						// if we're already listening, then we'll need to stop and start again with a new port #
+						bool restart = listener.IsListening;
+						if (restart)
+						{
+							optionsForm.SetServerState(ServerOptionsForm.ServerState.Paused);
+							listener.Stop();
+							ctx.AsyncWaitHandle.WaitOne(-1);
+							servedEvent.Reset();
+						}
+
+						// build the listener url string using the designated port.
+						url = "http://localhost:";
+						url += Properties.Settings.Default.port.ToString();
+						url += "/";
+
+						listener.Prefixes.Clear();
+						listener.Prefixes.Add(url);
+
+						if (restart)
+							startEvent.Set();
+						break;
+					}
+
+					case 2:     // start
+						if (!listener.IsListening)
+						{
+							// start the listener...
+							listener.Start();
+							optionsForm.Log(string.Format("Listening for connections as {0}\n", url));
+
+							try
+							{
+								// but sometimes things get whacked when re-starting the async context
+								ctx = listener.BeginGetContext(new AsyncCallback(ListenerRequestCallback), listener);
+							}
+							catch (Exception)
+							{
+								// if that happens, re-initialize the listener
+								listener.Close();
+								listener = new HttpListener();
+								listener.Prefixes.Clear();
+								listener.Prefixes.Add(url);
+								startEvent.Set();
+							}
+						}
+
+						optionsForm.SetServerState(ServerOptionsForm.ServerState.Active);
+						break;
+
+					case 3:     // stop
+						if (listener.IsListening)
+						{
+							listener.Stop();
+							ctx.AsyncWaitHandle.WaitOne(-1);
+						}
+
+						optionsForm.SetServerState(ServerOptionsForm.ServerState.Paused);
+						break;
+
+					case 4:     // serve completed, so refresh the context
+						if (listener.IsListening)
+							ctx = listener.BeginGetContext(new AsyncCallback(ListenerRequestCallback), listener);
+						break;
 				}
 			}
 
@@ -156,69 +218,30 @@ namespace Sherpa
 
 		public static void StartServer()
 		{
-			// create and start a new thread if there isn't one already
-			if (serverThread == null)
-			{
-				serverThread = new Thread(new ThreadStart(ServerThreadProc));
-				serverThread.Start();
-
-				optionsForm.buttonActive.Text = "Active";
-				optionsForm.buttonActive.BackColor = Color.PaleGreen;
-				optionsForm.buttonActive.ForeColor = Color.Black;
-			}
+			startEvent.Set();
 		}
 
 		public static void StopServer()
 		{
-			if (serverThread != null)
-			{
-				optionsForm.buttonActive.Text = "...";
-				optionsForm.buttonActive.BackColor = Color.Moccasin;
-				optionsForm.buttonActive.ForeColor = Color.Black;
-
-				// tell the server thread that it needs to shut down...
-				stopEvent.Set();
-
-				// ...and wait for the thread to stop.
-				serverThread.Join();
-
-				serverThread = null;
-
-				optionsForm.buttonActive.Text = "Paused";
-				optionsForm.buttonActive.BackColor = Color.LightCoral;
-				optionsForm.buttonActive.ForeColor = Color.White;
-			}
-		}
-
-		public static bool ServerActive()
-		{
-			return (serverThread == null) ? false : true;
+			stopEvent.Set();
 		}
 
 		public static void UpdatePort(int value)
 		{
-			bool restart = ServerActive();
-
-			if (restart)
-				StopServer();
-
 			Properties.Settings.Default.port = value;
-
-			if (restart)
-				StartServer();
+			settingsEvent.Set();
 		}
 
 		public static void UpdateRootDir(string value)
 		{
-			bool restart = ServerActive();
+			if (value != Properties.Settings.Default.rootDir)
+			{
+				rootDirMutex.WaitOne(-1);
+				Properties.Settings.Default.rootDir = value;
+				rootDirMutex.ReleaseMutex();
+			}
 
-			if (restart)
-				StopServer();
-
-			rootDir = value;
-
-			if (restart)
-				StartServer();
+			optionsForm.Log(string.Format("Serving content from file://{0}\n", value));
 		}
 
 		[STAThread]
@@ -244,15 +267,25 @@ namespace Sherpa
 			// Create our system global mutex that signifies our process is running
 			m = new Mutex(true, instanceMutexName);
 
-			stopEvent = new AutoResetEvent(false);
-			servedEvent = new AutoResetEvent(false);
-
 			Application.SetHighDpiMode(HighDpiMode.SystemAware);
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 
 			optionsForm = new ServerOptionsForm();
+
+			UpdateRootDir(Properties.Settings.Default.rootDir);
+
+			// Start the server thread
+			Thread serverThread = new Thread(new ThreadStart(ServerThreadProc));
+			serverThread.Start();
+
 			Application.Run(optionsForm);
+
+			// tell the server thread that it needs to shut down...
+			shutdownEvent.Set();
+
+			// ...and wait for the thread to stop.
+			serverThread.Join();
 
 			// We're closing now, so close the "single instance" system global mutex
 			m.Close();
