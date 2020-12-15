@@ -26,7 +26,7 @@ namespace Sherpa
 
 			for (int i = 0; i < Properties.Settings.Default.previousRootDirs.Count; i++)
 			{
-				comboRoot.Items.Add(Properties.Settings.Default.previousRootDirs[i].ToString());
+				MaybeAddPathToDropDown(Properties.Settings.Default.previousRootDirs[i].ToString());
 			}
 
 			Sherpa.StartServer();
@@ -76,7 +76,20 @@ namespace Sherpa
 			// if it hasn't been entered before, then add it to the combobox's drop down list...
 			// this will be used later to populate a sub-menu on the tray icon for fast switching
 			if (!itemfound)
+			{
 				comboRoot.Items.Add(path);
+
+				menuItemRootDirQuickChange.Enabled = true;
+				ToolStripItem newitem = menuItemRootDirQuickChange.DropDown.Items.Add(path);
+				newitem.Click += notifyIconContextMenu_PathClicked;
+			}
+		}
+
+		private void notifyIconContextMenu_PathClicked(object sender, EventArgs e)
+		{
+			ToolStripItem item = (ToolStripItem)sender;
+			comboRoot.Text = item.Text;
+			Sherpa.UpdateRootDir(item.Text);
 		}
 
 		private void comboRoot_TextUpdate(object sender, EventArgs e)
@@ -109,7 +122,7 @@ namespace Sherpa
 		private void notifyIcon_DoubleClick(object sender, EventArgs e)
 		{
 			Visible = true;
-			Show();
+			WindowState = FormWindowState.Normal;
 		}
 
 		public void Log(string s)
@@ -163,6 +176,8 @@ namespace Sherpa
 					buttonActive.Click -= buttonPaused_Click;
 					buttonActive.Click += buttonActive_Click;
 					buttonActive.Enabled = true;
+
+					menuItemToggleActivate.CheckState = CheckState.Checked;
 					break;
 
 				case ServerState.Paused:
@@ -172,12 +187,16 @@ namespace Sherpa
 					buttonActive.Click -= buttonActive_Click;
 					buttonActive.Click += buttonPaused_Click;
 					buttonActive.Enabled = true;
+
+					menuItemToggleActivate.CheckState = CheckState.Unchecked;
 					break;
 
 				case ServerState.Waiting:
 					buttonActive.Text = "...";
 					buttonActive.BackColor = Color.Moccasin;
 					buttonActive.ForeColor = Color.White;
+
+					menuItemToggleActivate.CheckState = CheckState.Indeterminate;
 					break;
 			}
 		}
@@ -192,6 +211,49 @@ namespace Sherpa
 		{
 			buttonActive.Enabled = false;
 			Sherpa.StartServer();
+		}
+
+		private void notifyIconContextMenu_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+		{
+			ToolStripItem item = e.ClickedItem;
+			if (item == menuItemOpen)
+			{
+				Visible = true;
+				WindowState = FormWindowState.Normal;
+			}
+			else if (item == menuItemToggleActivate)
+			{
+				switch (menuItemToggleActivate.CheckState)
+				{
+					case CheckState.Unchecked:
+						menuItemToggleActivate.CheckState = CheckState.Checked;
+						SetServerState(ServerState.Active);
+						break;
+
+					case CheckState.Checked:
+						menuItemToggleActivate.CheckState = CheckState.Unchecked;
+						SetServerState(ServerState.Paused);
+						break;
+				}
+			}
+			else if (item == menuItemShutdown)
+			{
+				Application.Exit();
+			}
+		}
+
+		private void ServerOptionsForm_Resize(object sender, EventArgs e)
+		{
+		}
+
+		private void ServerOptionsForm_FormClosing(object sender, FormClosingEventArgs e)
+		{
+			if (e.CloseReason == CloseReason.UserClosing)
+			{
+				e.Cancel = true;
+				WindowState = FormWindowState.Minimized;
+				Visible = false;
+			}
 		}
 	}
 }

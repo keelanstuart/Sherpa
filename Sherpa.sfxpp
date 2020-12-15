@@ -1,0 +1,94 @@
+<sfxpackager>
+
+<settings2>
+
+<powerprops:property_set>
+<powerprops:property id="ADCH" type="BOOLEAN">yes</powerprops:property>
+<powerprops:property id="ADMN" type="BOOLEAN">no</powerprops:property>
+<powerprops:property id="BOOT" type="BOOLEAN">no</powerprops:property>
+<powerprops:property id="CBSZ" type="ENUM">Default,Smallest,Smaller,Small,Normal,Large,Larger,Largest:0</powerprops:property>
+<powerprops:property id="CPTN" type="STRING">Sherpa Setup</powerprops:property>
+<powerprops:property id="DDST" type="STRING">%ProgramFiles%\Sherpa</powerprops:property>
+<powerprops:property id="ENEX" type="BOOLEAN">no</powerprops:property>
+<powerprops:property id="ICON" type="STRING">D:\proj\Sherpa\Resources\IconPaused.ico</powerprops:property>
+<powerprops:property id="IMAG" type="STRING">D:\proj\Sherpa\sherpaInstall.bmp</powerprops:property>
+<powerprops:property id="LICM" type="STRING"></powerprops:property>
+<powerprops:property id="LNCH" type="STRING"></powerprops:property>
+<powerprops:property id="MXSZ" type="INT">-1</powerprops:property>
+<powerprops:property id="OFSF" type="ENUM">None,Build Date,Version:2</powerprops:property>
+<powerprops:property id="OPMD" type="ENUM">Self-Extracting Executable,Executable With External Data:0</powerprops:property>
+<powerprops:property id="OUTP" type="STRING">Sherpa.exe</powerprops:property>
+<powerprops:property id="VCPY" type="STRING">Copyright (c) 2020, Keelan Stuart</powerprops:property>
+<powerprops:property id="VDSC" type="STRING"></powerprops:property>
+<powerprops:property id="VERS" type="STRING">D:\proj\Sherpa\bin\Release\netcoreapp3.1\Sherpa.exe</powerprops:property>
+<powerprops:property id="VPRD" type="STRING">Sherpa</powerprops:property>
+<powerprops:property id="WLCM" type="STRING">D:\proj\Sherpa\SherpaWelcome.html</powerprops:property>
+</powerprops:property_set>
+
+</settings2>
+
+<files2>
+
+<file2>
+
+<powerprops:property_set>
+<powerprops:property id="DSTP" type="STRING">\</powerprops:property>
+<powerprops:property id="EXCL" type="STRING"></powerprops:property>
+<powerprops:property id="NAME" type="STRING">Sherpa.dll</powerprops:property>
+<powerprops:property id="PRES" type="STRING"></powerprops:property>
+<powerprops:property id="SNPT" type="STRING"></powerprops:property>
+<powerprops:property id="SRCP" type="STRING">D:\proj\Sherpa\bin\Release\netcoreapp3.1\Sherpa.dll</powerprops:property>
+</powerprops:property_set>
+
+</file2>
+
+<file2>
+
+<powerprops:property_set>
+<powerprops:property id="DSTP" type="STRING">\</powerprops:property>
+<powerprops:property id="EXCL" type="STRING"></powerprops:property>
+<powerprops:property id="NAME" type="STRING">Sherpa.runtimeconfig.json</powerprops:property>
+<powerprops:property id="PRES" type="STRING"></powerprops:property>
+<powerprops:property id="SNPT" type="STRING"></powerprops:property>
+<powerprops:property id="SRCP" type="STRING">D:\proj\Sherpa\bin\Release\netcoreapp3.1\Sherpa.runtimeconfig.json</powerprops:property>
+</powerprops:property_set>
+
+</file2>
+
+<file2>
+
+<powerprops:property_set>
+<powerprops:property id="DSTP" type="STRING">\</powerprops:property>
+<powerprops:property id="EXCL" type="STRING"></powerprops:property>
+<powerprops:property id="NAME" type="STRING">Sherpa.deps.json</powerprops:property>
+<powerprops:property id="PRES" type="STRING"></powerprops:property>
+<powerprops:property id="SNPT" type="STRING"></powerprops:property>
+<powerprops:property id="SRCP" type="STRING">D:\proj\Sherpa\bin\Release\netcoreapp3.1\Sherpa.deps.json</powerprops:property>
+</powerprops:property_set>
+
+</file2>
+
+<file2>
+
+<powerprops:property_set>
+<powerprops:property id="DSTP" type="STRING">\</powerprops:property>
+<powerprops:property id="EXCL" type="STRING"></powerprops:property>
+<powerprops:property id="NAME" type="STRING">Sherpa.exe</powerprops:property>
+<powerprops:property id="PRES" type="STRING"></powerprops:property>
+<powerprops:property id="SNPT" type="STRING">CreateStartMenuEntry();</powerprops:property>
+<powerprops:property id="SRCP" type="STRING">D:\proj\Sherpa\bin\Release\netcoreapp3.1\Sherpa.exe</powerprops:property>
+</powerprops:property_set>
+
+</file2>
+
+</files2>
+
+<scripts>
+
+<script type="preinstall">CreateDirectoryTree(&quot;%APPDATA%/Microsoft/Windows/Start Menu/Programs/Sherpa HTTP Server&quot;);Echo(&quot;Created Start Menu folder...\n&quot;);</script>
+
+<script type="postfile">function CreateStartMenuEntry(){	CreateShortcut(&quot;%APPDATA%/Microsoft/Windows/Start Menu/Programs/Sherpa/Sherpa.lnk&quot;, FILEPATH, &quot;&quot;, BASEPATH, &quot;Sherpa HTTP Server&quot;, 1, FILEPATH, 0);	Echo(&quot;Created Start Menu shortcut...\n&quot;);}</script>
+
+</scripts>
+
+</sfxpackager>

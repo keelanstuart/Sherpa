@@ -56,6 +56,8 @@ namespace Sherpa
 			this.menuItemToggleActivate = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
 			this.menuItemRootDirQuickChange = new System.Windows.Forms.ToolStripMenuItem();
+			this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
+			this.menuItemShutdown = new System.Windows.Forms.ToolStripMenuItem();
 			((System.ComponentModel.ISupportInitialize)(this.editPort)).BeginInit();
 			this.notifyIconContextMenu.SuspendLayout();
 			this.SuspendLayout();
@@ -175,9 +177,12 @@ namespace Sherpa
             this.menuItemOpen,
             this.menuItemToggleActivate,
             this.toolStripSeparator1,
-            this.menuItemRootDirQuickChange});
+            this.menuItemRootDirQuickChange,
+            this.toolStripSeparator2,
+            this.menuItemShutdown});
 			this.notifyIconContextMenu.Name = "notifyIconContextMenu";
-			this.notifyIconContextMenu.Size = new System.Drawing.Size(200, 76);
+			this.notifyIconContextMenu.Size = new System.Drawing.Size(200, 104);
+			this.notifyIconContextMenu.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.notifyIconContextMenu_ItemClicked);
 			// 
 			// menuItemOpen
 			// 
@@ -187,9 +192,11 @@ namespace Sherpa
 			// 
 			// menuItemToggleActivate
 			// 
+			this.menuItemToggleActivate.Checked = true;
+			this.menuItemToggleActivate.CheckState = System.Windows.Forms.CheckState.Checked;
 			this.menuItemToggleActivate.Name = "menuItemToggleActivate";
 			this.menuItemToggleActivate.Size = new System.Drawing.Size(199, 22);
-			this.menuItemToggleActivate.Text = "Disable";
+			this.menuItemToggleActivate.Text = "Active";
 			// 
 			// toolStripSeparator1
 			// 
@@ -202,6 +209,17 @@ namespace Sherpa
 			this.menuItemRootDirQuickChange.Name = "menuItemRootDirQuickChange";
 			this.menuItemRootDirQuickChange.Size = new System.Drawing.Size(199, 22);
 			this.menuItemRootDirQuickChange.Text = "Quickset Root Directory";
+			// 
+			// toolStripSeparator2
+			// 
+			this.toolStripSeparator2.Name = "toolStripSeparator2";
+			this.toolStripSeparator2.Size = new System.Drawing.Size(196, 6);
+			// 
+			// menuItemShutdown
+			// 
+			this.menuItemShutdown.Name = "menuItemShutdown";
+			this.menuItemShutdown.Size = new System.Drawing.Size(199, 22);
+			this.menuItemShutdown.Text = "Exit Sherpa";
 			// 
 			// ServerOptionsForm
 			// 
@@ -218,8 +236,10 @@ namespace Sherpa
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.Name = "ServerOptionsForm";
 			this.Text = "Sherpa HTTP Server";
+			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ServerOptionsForm_FormClosing);
 			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.ServerOptionsForm_FormClosed);
 			this.Load += new System.EventHandler(this.ServerOptionsForm_Load);
+			this.Resize += new System.EventHandler(this.ServerOptionsForm_Resize);
 			((System.ComponentModel.ISupportInitialize)(this.editPort)).EndInit();
 			this.notifyIconContextMenu.ResumeLayout(false);
 			this.ResumeLayout(false);
@@ -243,6 +263,8 @@ namespace Sherpa
 		private ToolStripMenuItem menuItemToggleActivate;
 		private ToolStripSeparator toolStripSeparator1;
 		private ToolStripMenuItem menuItemRootDirQuickChange;
+		private ToolStripSeparator toolStripSeparator2;
+		private ToolStripMenuItem menuItemShutdown;
 	}
 }
 

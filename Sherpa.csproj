@@ -12,6 +12,7 @@
     <PackageProjectUrl>https://github.com/keelanstuart/Sherpa</PackageProjectUrl>
     <RepositoryUrl>https://github.com/keelanstuart/Sherpa</RepositoryUrl>
     <PackageIcon>sherpa.png</PackageIcon>
+    <ApplicationIcon>IconPaused.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
