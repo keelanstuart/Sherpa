@@ -7,12 +7,14 @@
     <StartupObject></StartupObject>
     <Company>Keelan Stuart</Company>
     <Authors>Keelan Stuart</Authors>
-    <Description>A lightweight http server, primarily meant to be used over localhost</Description>
+    <Description>A lightweight http server</Description>
     <Copyright>Copyright (c) 2020, Keelan Stuart</Copyright>
     <PackageProjectUrl>https://github.com/keelanstuart/Sherpa</PackageProjectUrl>
     <RepositoryUrl>https://github.com/keelanstuart/Sherpa</RepositoryUrl>
     <PackageIcon>sherpa.png</PackageIcon>
     <ApplicationIcon>IconPaused.ico</ApplicationIcon>
+    <Version>1.0.0.1</Version>
+    <NeutralLanguage />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
