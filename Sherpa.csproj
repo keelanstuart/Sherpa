@@ -13,7 +13,7 @@
     <RepositoryUrl>https://github.com/keelanstuart/Sherpa</RepositoryUrl>
     <PackageIcon>sherpa.png</PackageIcon>
     <ApplicationIcon>IconPaused.ico</ApplicationIcon>
-    <Version>1.0.0.1</Version>
+    <Version>1.0.0.2</Version>
     <NeutralLanguage />
   </PropertyGroup>
 
