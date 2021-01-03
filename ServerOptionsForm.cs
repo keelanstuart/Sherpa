@@ -147,9 +147,7 @@ namespace Sherpa
 			logTextBox.ScrollToCaret();
 		}
 
-		public enum ServerState { Active, Paused, Waiting };
-
-		public void SetServerState(ServerState s)
+		public void SetServerState(HttpServer.State s)
 		{
 			if (buttonActive == null)
 				return;
@@ -158,7 +156,7 @@ namespace Sherpa
 			{
 				try
 				{
-					this.Invoke(new Action<ServerState>(SetServerState), new object[] { s });
+					this.Invoke(new Action<HttpServer.State>(SetServerState), new object[] { s });
 				}
 				catch(Exception)
 				{
@@ -169,7 +167,7 @@ namespace Sherpa
 
 			switch (s)
 			{
-				case ServerState.Active:
+				case HttpServer.State.Active:
 					buttonActive.Text = "Active";
 					buttonActive.BackColor = Color.PaleGreen;
 					buttonActive.ForeColor = Color.Black;
@@ -180,7 +178,7 @@ namespace Sherpa
 					menuItemToggleActivate.CheckState = CheckState.Checked;
 					break;
 
-				case ServerState.Paused:
+				case HttpServer.State.Inactive:
 					buttonActive.Text = "Paused";
 					buttonActive.BackColor = Color.LightCoral;
 					buttonActive.ForeColor = Color.White;
@@ -191,7 +189,7 @@ namespace Sherpa
 					menuItemToggleActivate.CheckState = CheckState.Unchecked;
 					break;
 
-				case ServerState.Waiting:
+				case HttpServer.State.Waiting:
 					buttonActive.Text = "...";
 					buttonActive.BackColor = Color.Moccasin;
 					buttonActive.ForeColor = Color.White;
@@ -216,6 +214,7 @@ namespace Sherpa
 		private void notifyIconContextMenu_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
 		{
 			ToolStripItem item = e.ClickedItem;
+
 			if (item == menuItemOpen)
 			{
 				Visible = true;
@@ -223,18 +222,10 @@ namespace Sherpa
 			}
 			else if (item == menuItemToggleActivate)
 			{
-				switch (menuItemToggleActivate.CheckState)
-				{
-					case CheckState.Unchecked:
-						menuItemToggleActivate.CheckState = CheckState.Checked;
-						SetServerState(ServerState.Active);
-						break;
-
-					case CheckState.Checked:
-						menuItemToggleActivate.CheckState = CheckState.Unchecked;
-						SetServerState(ServerState.Paused);
-						break;
-				}
+				if (menuItemToggleActivate.CheckState == CheckState.Unchecked)
+					Sherpa.StartServer();
+				else
+					Sherpa.StopServer();
 			}
 			else if (item == menuItemShutdown)
 			{
