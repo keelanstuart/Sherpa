@@ -105,6 +105,7 @@ namespace Sherpa
 			Application.Run(optionsForm);
 
 			server.StopServer();
+			server.Dispose();
 
 			// We're closing now, so close the "single instance" system global mutex
 			m.Close();

@@ -131,7 +131,12 @@ namespace Sherpa
 			if (logFunc != null)
 				logFunc(string.Format("Request({0}): {2} << \"{1}\" ({3})\n", ++requestCount, req.Url.ToString(), req.UserHostName, filename));
 
-			byte[] databuf = null;
+			// 64KB buffer
+			byte[] buffer = new byte[64 * 1024];
+
+			// generic stream that will either pull data from a file or a generated string
+			Stream datastream;
+			long fulllength;
 
 			// if the file requested doesn't exist...
 			if (!File.Exists(filename))
@@ -148,13 +153,19 @@ namespace Sherpa
 
 				// report 404
 				resp.StatusCode = 404;
-				databuf = Encoding.UTF8.GetBytes(String.Format(fourOhFour, filename));
+				string s = String.Format(fourOhFour, filename);
+
+				// In this case, the datastream is a memory stream
+				byte[] tmp = Encoding.UTF8.GetBytes(s);
+				datastream = new MemoryStream(tmp);
+				fulllength = tmp.Length;
 			}
 			else
 			{
 				// otherwise, load it's contents into data and report "OK"
 				resp.StatusCode = 200;
-				databuf = File.ReadAllBytes(filename);
+				datastream = File.OpenRead(filename);
+				fulllength = new System.IO.FileInfo(filename).Length;
 			}
 
 			// Retrieve the content type from the registry -- they're under CLASSES_ROOT/<ext>/Content Type
@@ -180,12 +191,25 @@ namespace Sherpa
 			resp.ContentEncoding = Encoding.UTF8;
 
 			// Send chunked if the data isn't "text" or it's larger than 256KB
-			resp.SendChunked = true;// false;// (data.LongLength >= (1 << 18)) || !resp.ContentType.Contains("text", StringComparison.CurrentCultureIgnoreCase);
-			resp.ContentLength64 = databuf.Length;
+			resp.SendChunked = false;// (data.LongLength >= (1 << 18)) || !resp.ContentType.Contains("text", StringComparison.CurrentCultureIgnoreCase);
+			resp.ContentLength64 = fulllength;
 
-			// Write out to the response stream (asynchronously), then close it
-			resp.OutputStream.WriteAsync(databuf, 0, databuf.Length);
+			int read;
+			// read chunks of the input datastream and write them to the response stream
+			using (BinaryWriter bw = new BinaryWriter(resp.OutputStream))
+			{
+				while ((read = datastream.Read(buffer, 0, buffer.Length)) > 0)
+				{
+					bw.Write(buffer, 0, read);
+					bw.Flush(); //seems to have no effect
+					Thread.Sleep(0);
+				}
+
+				bw.Close();
+			}
+
 			resp.Close();
+			datastream.Close();
 
 			// Once the request has been served, we can quit if we need to
 			evServed.Set();
@@ -207,34 +231,36 @@ namespace Sherpa
 				switch (waitret)
 				{
 					case 1:
+					{
+						// if we're already listening, then we'll need to stop and start again with a new port #
+						bool restart = listener.IsListening;
+						if (restart)
 						{
-							// if we're already listening, then we'll need to stop and start again with a new port #
-							bool restart = listener.IsListening;
-							if (restart)
-							{
-								curState = State.Inactive;
-								if (reportStateFunc != null)
-									reportStateFunc(curState);
+							curState = State.Inactive;
+							if (reportStateFunc != null)
+								reportStateFunc(curState);
 
-								listener.Stop();
-								ctx.AsyncWaitHandle.WaitOne(-1);
-								evServed.Reset();
-							}
-
-							// build the listener url string using the designated port.
-							url = "http://localhost:";
-							url += port.ToString();
-							url += "/";
-
-							listener.Prefixes.Clear();
-							listener.Prefixes.Add(url);
-
-							if (restart)
-								evStart.Set();
-							break;
+							listener.Stop();
+							ctx.AsyncWaitHandle.WaitOne(-1);
+							evServed.Reset();
 						}
 
+						// build the listener url string using the designated port.
+						url = "http://localhost:";
+						url += port.ToString();
+						url += "/";
+
+						listener.Prefixes.Clear();
+						listener.Prefixes.Add(url);
+
+						if (restart)
+							evStart.Set();
+
+						break;
+					}
+
 					case 2:     // start
+					{
 						if (!listener.IsListening)
 						{
 							// start the listener...
@@ -262,9 +288,12 @@ namespace Sherpa
 						curState = State.Active;
 						if (reportStateFunc != null)
 							reportStateFunc(curState);
+
 						break;
+					}
 
 					case 3:     // stop
+					{
 						if (listener.IsListening)
 						{
 							listener.Stop();
@@ -274,12 +303,17 @@ namespace Sherpa
 						curState = State.Inactive;
 						if (reportStateFunc != null)
 							reportStateFunc(curState);
+
 						break;
+					}
 
 					case 4:     // serve completed, so refresh the context
+					{
 						if (listener.IsListening)
 							ctx = listener.BeginGetContext(new AsyncCallback(ListenerRequestCallback), listener);
+
 						break;
+					}
 				}
 			}
 
