@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using System.IO;
+using System.Diagnostics;
 using System.Net;
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
 
 namespace Sherpa
 {
@@ -39,7 +38,7 @@ namespace Sherpa
 
 		private Thread serverThread;
 
-		public HttpServer()
+		public HttpServer(int initial_port = defaultPort, string initial_rootdir = defaultRootDir)
 		{
 			evShutdown = new AutoResetEvent(false);
 			evSettings = new AutoResetEvent(true);
@@ -51,8 +50,8 @@ namespace Sherpa
 
 			requestCount = 0;
 
-			port = defaultPort;
-			rootDir = defaultRootDir;
+			port = initial_port;
+			rootDir = initial_rootdir;
 			curState = State.Inactive;
 			logFunc = null;
 			reportStateFunc = null;
@@ -86,6 +85,9 @@ namespace Sherpa
 
 		private void ListenerRequestCallback(IAsyncResult result)
 		{
+			Stopwatch sw = Stopwatch.StartNew();
+			sw.Start();
+
 			HttpListener listener = (HttpListener)result.AsyncState;
 
 			// Use EndGetContext to complete the asynchronous operation.
@@ -127,12 +129,11 @@ namespace Sherpa
 				}
 			}
 
+			++requestCount;
+
 			// Print out some info about the request
 			if (logFunc != null)
-				logFunc(string.Format("Request({0}): {2} << \"{1}\" ({3})\n", ++requestCount, req.Url.ToString(), req.UserHostName, filename));
-
-			// 64KB buffer
-			byte[] buffer = new byte[64 * 1024];
+				logFunc(string.Format("({0}): {2} << \"{1}\" ({3})\n", requestCount, req.Url.ToString(), req.UserHostName, filename));
 
 			// generic stream that will either pull data from a file or a generated string
 			Stream datastream;
@@ -165,6 +166,7 @@ namespace Sherpa
 				// otherwise, load it's contents into data and report "OK"
 				resp.StatusCode = 200;
 				datastream = File.OpenRead(filename);
+
 				fulllength = new System.IO.FileInfo(filename).Length;
 			}
 
@@ -190,22 +192,52 @@ namespace Sherpa
 			// Write the response info
 			resp.ContentEncoding = Encoding.UTF8;
 
+			// avoid CORS issues with asking for data from somewhere else...
+			resp.AddHeader("Access-Control-Allow-Origin", "*");
+
 			// Send chunked if the data isn't "text" or it's larger than 256KB
-			resp.SendChunked = false;// (data.LongLength >= (1 << 18)) || !resp.ContentType.Contains("text", StringComparison.CurrentCultureIgnoreCase);
+			resp.SendChunked = true;// (data.LongLength >= (1 << 18)) || !resp.ContentType.Contains("text", StringComparison.CurrentCultureIgnoreCase);
 			resp.ContentLength64 = fulllength;
 
 			int read;
 			// read chunks of the input datastream and write them to the response stream
 			using (BinaryWriter bw = new BinaryWriter(resp.OutputStream))
 			{
-				while ((read = datastream.Read(buffer, 0, buffer.Length)) > 0)
+				// 2 x 1MB buffers
+				const long bufsz = 1024 * 1024;
+				byte[][] buffer = new byte[2][] { new byte[bufsz], new byte[bufsz] };
+
+				int rbidx = 0;
+
+				Task write_task = null;
+
+				while ((read = datastream.Read(buffer[rbidx], 0, buffer[rbidx].Length)) > 0)
 				{
-					bw.Write(buffer, 0, read);
-					bw.Flush(); //seems to have no effect
+					try
+					{
+						if (write_task != null)
+							write_task.Wait();
+
+						write_task = bw.BaseStream.WriteAsync(buffer[rbidx], 0, read);
+					}
+					catch (Exception)
+					{
+						break;
+					}
+
+					rbidx ^= 1;
+
 					Thread.Sleep(0);
 				}
 
-				bw.Close();
+				try
+				{
+					bw.Close();
+				}
+				catch (Exception)
+				{
+
+				}
 			}
 
 			resp.Close();
@@ -213,6 +245,10 @@ namespace Sherpa
 
 			// Once the request has been served, we can quit if we need to
 			evServed.Set();
+
+			sw.Stop();
+			if (logFunc != null)
+				logFunc(string.Format("\t... served in {0}ms\n", sw.ElapsedMilliseconds.ToString()));
 		}
 
 		public void ServerThreadProc()
